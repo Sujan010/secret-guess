@@ -182,7 +182,9 @@ io.on("connection", (socket) => {
 
     const fb = feedback(room.secrets[o], num);
 
-    socket.emit("feedback", {
+    io.to(socket.room).emit("feedback", {
+      by: p, // A or B
+      guess: num, // guessed number
       attempt: room.attempts[p],
       correctPos: fb.cp,
       correctWrongPos: fb.wp,

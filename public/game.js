@@ -44,10 +44,32 @@ function makeGuess() {
 /* -------- Socket events -------- */
 
 // Feedback
+const historyA = document.getElementById("historyA");
+const historyB = document.getElementById("historyB");
+
 socket.on("feedback", (fb) => {
+  const totalCorrect = fb.correctPos + fb.correctWrongPos;
+  let message = "";
+
+  if (totalCorrect === 0) {
+    message = "All numbers are wrong";
+  } else if (fb.correctPos > 0 && fb.correctWrongPos === 0) {
+    message = `${fb.correctPos} number${fb.correctPos > 1 ? "s" : ""} are correct and ${fb.correctPos} position${fb.correctPos > 1 ? "s" : ""} are also correct`;
+  } else if (fb.correctPos === 0 && fb.correctWrongPos > 0) {
+    message = `${fb.correctWrongPos} number${fb.correctWrongPos > 1 ? "s" : ""} are correct but position${fb.correctWrongPos > 1 ? "s" : ""} are wrong`;
+  } else {
+    message = `${totalCorrect} number${totalCorrect > 1 ? "s" : ""} are correct and ${fb.correctPos} position${fb.correctPos > 1 ? "s" : ""} are also correct`;
+  }
+
   const li = document.createElement("li");
-  li.innerText = `Attempt ${fb.attempt}: ${fb.correctPos} CP, ${fb.correctWrongPos} WP`;
-  history.appendChild(li);
+  li.innerText = `Attempt ${fb.attempt}: Guess ${fb.guess} → ${message}`;
+
+  // Append to correct history
+  if (fb.by === "A") {
+    historyA.appendChild(li);
+  } else {
+    historyB.appendChild(li);
+  }
 });
 
 // General messages
