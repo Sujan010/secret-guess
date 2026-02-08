@@ -12,10 +12,14 @@ app.use(express.static("public"));
 Room structure:
 rooms = {
   SG123: {
-    players: { A: { id, name }, B: { id, name } },
-    secrets: { A: "1234", B: "5678" },
+    players: {
+      A: { id, name, online },
+      B: { id, name, online }
+    },
+    secrets: { A, B },
     attempts: { A: 0, B: 0 },
-    turn: "A"
+    turn: "A",
+    state: "WAITING_FOR_SECRETS" | "IN_PROGRESS" | "GAME_OVER"
   }
 }
 */
@@ -28,30 +32,37 @@ function isValid(num) {
   return /^[1-9]{4}$/.test(num) && new Set(num).size === 4;
 }
 
-// SAFE feedback (never crashes)
 function feedback(secret, guess) {
-  if (!secret || !guess) {
-    return { cp: 0, wp: 0 };
-  }
-
-  let cp = 0;
-  let wp = 0;
-
+  let cp = 0,
+    wp = 0;
   for (let i = 0; i < 4; i++) {
-    if (guess[i] === secret[i]) {
-      cp++;
-    } else if (secret.includes(guess[i])) {
-      wp++;
-    }
+    if (guess[i] === secret[i]) cp++;
+    else if (secret.includes(guess[i])) wp++;
   }
   return { cp, wp };
+}
+
+function emitPlayerStatus(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+
+  io.to(roomId).emit("playerStatus", {
+    A: room.players.A
+      ? { name: room.players.A.name, online: room.players.A.online }
+      : null,
+    B: room.players.B
+      ? { name: room.players.B.name, online: room.players.B.online }
+      : null,
+  });
 }
 
 /* ---------------- SOCKET ---------------- */
 
 io.on("connection", (socket) => {
-  /* -------- MANUAL ROOM JOIN -------- */
+  /* -------- MANUAL JOIN -------- */
   socket.on("join", ({ room, player, name }) => {
+    room = room.toUpperCase();
+
     socket.join(room);
     socket.room = room;
     socket.player = player;
@@ -63,19 +74,21 @@ io.on("connection", (socket) => {
         secrets: {},
         attempts: { A: 0, B: 0 },
         turn: "A",
+        state: "WAITING_FOR_SECRETS",
       };
     }
 
     rooms[room].players[player] = {
       id: socket.id,
       name,
+      online: true,
     };
 
     io.to(room).emit("msg", `👤 ${name} joined as Player ${player}`);
-    io.to(room).emit("turn", rooms[room].turn);
+    emitPlayerStatus(room);
   });
 
-  /* -------- AUTO MATCHMAKING -------- */
+  /* -------- AUTO MATCH -------- */
   socket.on("autoMatch", ({ name }) => {
     socket.name = name;
 
@@ -89,12 +102,13 @@ io.on("connection", (socket) => {
 
     rooms[room] = {
       players: {
-        A: { id: waitingPlayer.id, name: waitingPlayer.name },
-        B: { id: socket.id, name },
+        A: { id: waitingPlayer.id, name: waitingPlayer.name, online: true },
+        B: { id: socket.id, name, online: true },
       },
       secrets: {},
       attempts: { A: 0, B: 0 },
       turn: "A",
+      state: "WAITING_FOR_SECRETS",
     };
 
     waitingPlayer.join(room);
@@ -106,20 +120,15 @@ io.on("connection", (socket) => {
     socket.player = "B";
 
     io.to(room).emit("msg", "🎮 Match found!");
-    io.to(room).emit("turn", "A");
+    emitPlayerStatus(room);
 
     waitingPlayer = null;
   });
 
   /* -------- SET SECRET -------- */
-
   socket.on("secret", (num) => {
     const room = rooms[socket.room];
-    if (!room) return;
-    if (room.secrets.A && room.secrets.B) {
-      io.to(socket.room).emit("msg", "🎯 Both secrets locked. Game begins!");
-      io.to(socket.room).emit("turn", room.turn);
-    }
+    if (!room || room.state !== "WAITING_FOR_SECRETS") return;
 
     if (!isValid(num)) {
       socket.emit("msg", "❌ Invalid secret");
@@ -128,10 +137,7 @@ io.on("connection", (socket) => {
 
     room.secrets[socket.player] = num;
 
-    // Notify THIS player
     socket.emit("msg", "🔒 Secret locked. Waiting for opponent...");
-
-    // Notify opponent (if exists)
     socket
       .to(socket.room)
       .emit(
@@ -139,9 +145,10 @@ io.on("connection", (socket) => {
         `⏳ ${room.players[socket.player].name} locked their secret`,
       );
 
-    // If both secrets are ready → start game
     if (room.secrets.A && room.secrets.B) {
-      io.to(socket.room).emit("msg", "🎯 Both secrets locked. Game begins!");
+      room.state = "IN_PROGRESS";
+
+      io.to(socket.room).emit("msg", "🚀 GAME STARTED 🚀");
       io.to(socket.room).emit("turn", room.turn);
     }
   });
@@ -149,30 +156,21 @@ io.on("connection", (socket) => {
   /* -------- GUESS -------- */
   socket.on("guess", (num) => {
     const room = rooms[socket.room];
-    if (!room) return;
+    if (!room || room.state !== "IN_PROGRESS") return;
 
     const p = socket.player;
     const o = p === "A" ? "B" : "A";
 
-    // Not your turn
     if (room.turn !== p) {
       socket.emit("msg", "⏳ Not your turn");
       return;
     }
 
-    // Secrets not ready
-    if (!room.secrets.A || !room.secrets.B) {
-      socket.emit("msg", "⚠️ Both players must lock secrets first");
-      return;
-    }
-
-    // Invalid guess
     if (!isValid(num)) {
       socket.emit("msg", "❌ Invalid guess");
       return;
     }
 
-    // Attempts exhausted
     if (room.attempts[p] >= 10) {
       socket.emit("msg", "❌ No attempts left");
       return;
@@ -183,51 +181,53 @@ io.on("connection", (socket) => {
     const fb = feedback(room.secrets[o], num);
 
     io.to(socket.room).emit("feedback", {
-      by: p, // A or B
-      guess: num, // guessed number
+      by: p,
+      guess: num,
       attempt: room.attempts[p],
       correctPos: fb.cp,
       correctWrongPos: fb.wp,
     });
 
-    // WIN
     if (fb.cp === 4) {
+      room.state = "GAME_OVER";
       io.to(socket.room).emit(
         "msg",
-        `🏆 ${room.players[p].name} wins the game!`,
+        `🏆 ${room.players[p].name} WINS THE GAME!`,
       );
-      delete rooms[socket.room];
       return;
     }
 
-    // LAST ATTEMPT
     if (room.attempts[p] === 10) {
       io.to(socket.room).emit(
         "msg",
-        `❌ ${room.players[p].name} used all 10 attempts`,
+        `❌ ${room.players[p].name} used all attempts`,
       );
 
       if (room.attempts[o] >= 10) {
-        io.to(socket.room).emit("msg", "🤝 Game Over! No winner.");
-        delete rooms[socket.room];
+        room.state = "GAME_OVER";
+        io.to(socket.room).emit("msg", "🤝 GAME OVER! NO WINNER");
       }
-      return; // ⛔ Do not switch turn
+      return;
     }
 
-    // Switch turn
     room.turn = o;
     io.to(socket.room).emit("turn", room.turn);
   });
 
   /* -------- DISCONNECT -------- */
   socket.on("disconnect", () => {
-    if (socket === waitingPlayer) {
-      waitingPlayer = null;
-    }
+    if (socket === waitingPlayer) waitingPlayer = null;
 
     if (socket.room && rooms[socket.room]) {
-      io.to(socket.room).emit("msg", "⚠️ Player disconnected");
-      delete rooms[socket.room];
+      const room = rooms[socket.room];
+      const p = socket.player;
+
+      if (room.players[p]) {
+        room.players[p].online = false;
+      }
+
+      emitPlayerStatus(socket.room);
+      io.to(socket.room).emit("msg", "⚠️ A player went offline");
     }
   });
 });
