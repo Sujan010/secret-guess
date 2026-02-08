@@ -116,6 +116,10 @@ io.on("connection", (socket) => {
   socket.on("secret", (num) => {
     const room = rooms[socket.room];
     if (!room) return;
+    if (room.secrets.A && room.secrets.B) {
+      io.to(socket.room).emit("msg", "🎯 Both secrets locked. Game begins!");
+      io.to(socket.room).emit("turn", room.turn);
+    }
 
     if (!isValid(num)) {
       socket.emit("msg", "❌ Invalid secret");
