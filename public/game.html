@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SECRET GUESS | Game</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-animated">
+
+<nav class="navbar">
+  <div class="logo">🔐 SECRET GUESS</div>
+</nav>
+
+<section class="center">
+  <div class="card glass wide">
+    <h2 id="playerInfo"></h2>
+
+    <input id="secret" placeholder="Set Secret Number">
+    <button onclick="setSecret()">Lock Secret</button>
+
+    <input id="guess" placeholder="Enter Guess">
+    <button id="guessBtn" onclick="makeGuess()">Guess</button>
+
+    <p id="status">Waiting…</p>
+  </div>
+
+  <div class="card glass history">
+    <h3>📊 Guess History</h3>
+    <ul id="history"></ul>
+  </div>
+</section>
+
+<script src="game.js"></script>
+</body>
+</html>

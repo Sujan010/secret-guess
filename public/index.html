@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>SECRET GUESS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-animated">
+
+<!-- NAVBAR -->
+<nav class="navbar glass">
+  <div class="logo">🎮 SECRET GUESS</div>
+  <ul class="nav-links">
+    <li onclick="go('home')">Home</li>
+    <li onclick="go('rules')">Rules</li>
+    <li onclick="go('play')">Play</li>
+    <li onclick="go('community')">Community</li>
+  </ul>
+</nav>
+
+
+<!-- HERO -->
+<section class="hero">
+  <h1>SECRET GUESS</h1>
+  <p class="tagline">
+    A 2-player mind-bending number deduction game.
+    Outsmart your opponent using logic, memory, and strategy.
+  </p>
+</section>
+
+<!-- RULES -->
+<section id="rules" class="rules-section glass">
+  <h2>🎯 How SECRET GUESS Works</h2>
+
+  <p>
+    SECRET GUESS is a competitive 2-player deduction game.
+    Each player secretly selects a 4-digit number using digits 1–9,
+    with no repetition.
+  </p>
+
+  <ul class="rules-list">
+    <li><span>🧠</span> No digit positions are revealed.</li>
+    <li><span>🔢</span> Feedback is count-based only.</li>
+    <li><span>⏳</span> Each player gets 10 attempts.</li>
+    <li><span>🏆</span> First to crack all 4 positions wins.</li>
+    <li><span>🌍</span> Solo players are auto-matched online.</li>
+  </ul>
+</section>
+
+<!-- LOBBY CARD -->
+<section class="center">
+  <div class="card glass">
+    <h2>🎮 Enter Game</h2>
+    <input id="room" placeholder="Room ID">
+    <input id="name" placeholder="Display Name">
+    <select id="player">
+      <option value="A">Player A</option>
+      <option value="B">Player B</option>
+    </select>
+    <button onclick="enterGame()">Start Game</button>
+    <button onclick="autoPlay()">Play Online</button>
+
+  </div>
+</section>
+
+
+
+<footer class="footer glass">
+  <div class="footer-grid">
+    <div>
+      <h3>SECRET GUESS</h3>
+      <p>Outthink. Outsmart. Outplay.</p>
+    </div>
+
+    <div>
+      <h4>Explore</h4>
+      <p>Home</p>
+      <p>Game Modes</p>
+      <p>Library</p>
+    </div>
+
+    <div>
+      <h4>Community</h4>
+      <p>Discord</p>
+      <p>Instagram</p>
+      <p>TikTok</p>
+    </div>
+  </div>
+
+  <p class="copyright">
+    ©2026 SECRET GUESS • v1.0
+  </p>
+</footer>
+<!-- Custom Cursor -->
+
+<div class="cursor-outer"></div>
+<div class="cursor-inner"></div>
+<script src="cursor.js"></script>
+<script src="lobby.js"></script>
+<script src="nav.js"></script>
+
+</body>
+</html>
