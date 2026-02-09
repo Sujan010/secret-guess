@@ -1,28 +1,17 @@
 const socket = io();
 
-/* ---------- DOM ---------- */
-const historyA = document.getElementById("historyA");
-const historyB = document.getElementById("historyB");
+// DOM references (MUST come first)
+const history = document.getElementById("history");
 const status = document.getElementById("status");
 const guessInput = document.getElementById("guess");
 const guessBtn = document.getElementById("guessBtn");
-const secretInput = document.getElementById("secret");
 
-const gameResult = document.getElementById("gameResult");
-const resultText = document.getElementById("resultText");
-const playAgainBtn = document.getElementById("playAgainBtn");
-
-const copyBtn = document.getElementById("copyLinkBtn");
-
-/* ---------- SESSION ---------- */
-const room = sessionStorage.getItem("room").toUpperCase();
+// Session data
+const room = sessionStorage.getItem("room");
 const name = sessionStorage.getItem("name");
 const player = sessionStorage.getItem("player");
 
-let gameStarted = false;
-let gameOver = false;
-
-/* ---------- INIT ---------- */
+// Initial UI state
 guessInput.disabled = true;
 guessBtn.disabled = true;
 status.innerText = "🔐 Lock your secret to begin";
@@ -30,83 +19,90 @@ status.innerText = "🔐 Lock your secret to begin";
 document.getElementById("playerInfo").innerText =
   `${name} (Player ${player}) | Room ${room}`;
 
-const roomLink = `${window.location.origin}/join?room=${room}`;
-roomLinkInput.value = roomLink;
-
+// Join room
 socket.emit("join", { room, player, name });
 
-/* ---------- ACTIONS ---------- */
+let gameStarted = false;
+
+/* -------- Actions -------- */
 
 function setSecret() {
-  socket.emit("secret", secretInput.value);
+  socket.emit("secret", secret.value);
 }
 
 function makeGuess() {
-  if (guessInput.disabled || !gameStarted || gameOver) return;
+  if (guessInput.disabled || !gameStarted) return;
 
-  const value = guessInput.value.trim();
-  if (!value) return;
-
-  socket.emit("guess", value);
+  socket.emit("guess", guess.value);
   guessInput.value = "";
 
+  // prevent spam until next turn
   guessInput.disabled = true;
   guessBtn.disabled = true;
 }
 
-/* ---------- SOCKET EVENTS ---------- */
+/* -------- Socket events -------- */
+
+// Feedback
+const historyA = document.getElementById("historyA");
+const historyB = document.getElementById("historyB");
 
 socket.on("feedback", (fb) => {
-  const total = fb.correctPos + fb.correctWrongPos;
-  let msg = "";
+  const totalCorrect = fb.correctPos + fb.correctWrongPos;
+  let message = "";
 
-  if (total === 0) {
-    msg = "All numbers are wrong";
-  } else if (fb.correctPos === total) {
-    msg = `${fb.correctPos} numbers are correct and ${fb.correctPos} positions are also correct`;
-  } else if (fb.correctPos === 0) {
-    msg = `${fb.correctWrongPos} numbers are correct but positions are wrong`;
+  if (totalCorrect === 0) {
+    message = "All numbers are wrong";
+  } else if (fb.correctPos > 0 && fb.correctWrongPos === 0) {
+    message = `${fb.correctPos} number${fb.correctPos > 1 ? "s" : ""} are correct and ${fb.correctPos} position${fb.correctPos > 1 ? "s" : ""} are also correct`;
+  } else if (fb.correctPos === 0 && fb.correctWrongPos > 0) {
+    message = `${fb.correctWrongPos} number${fb.correctWrongPos > 1 ? "s" : ""} are correct but position${fb.correctWrongPos > 1 ? "s" : ""} are wrong`;
   } else {
-    msg = `${total} numbers are correct and ${fb.correctPos} positions are also correct`;
+    message = `${totalCorrect} number${totalCorrect > 1 ? "s" : ""} are correct and ${fb.correctPos} position${fb.correctPos > 1 ? "s" : ""} are also correct`;
   }
 
   const li = document.createElement("li");
-  li.innerText = `Attempt ${fb.attempt}: Guess ${fb.guess} → ${msg}`;
+  li.innerText = `Attempt ${fb.attempt}: Guess ${fb.guess} → ${message}`;
 
-  (fb.by === "A" ? historyA : historyB).appendChild(li);
+  // Append to correct history
+  if (fb.by === "A") {
+    historyA.appendChild(li);
+  } else {
+    historyB.appendChild(li);
+  }
 });
 
+const gameResult = document.getElementById("gameResult");
+const resultText = document.getElementById("resultText");
+// General messages
 socket.on("msg", (msg) => {
   status.innerText = msg;
 
+  if (msg.includes("Both secrets locked")) {
+    gameStarted = true;
+  }
   if (msg.includes("GAME STARTED")) {
     gameStarted = true;
   }
 
-  if (msg.includes("WINS")) {
-    gameOver = true;
+  if (msg.includes("wins")) {
     gameStarted = false;
-
     guessInput.disabled = true;
     guessBtn.disabled = true;
-
     resultText.innerText = msg.includes(name) ? "🎉 YOU WON!" : "😔 YOU LOST";
-
     gameResult.classList.remove("hidden");
-
-    if (msg.includes(name)) launchConfetti();
   }
 
   if (msg.includes("NO WINNER") || msg.includes("used all")) {
-    gameOver = true;
     gameStarted = false;
     resultText.innerText = "🤝 GAME OVER";
     gameResult.classList.remove("hidden");
   }
 });
 
+// Turn handling (ONLY controls guessing)
 socket.on("turn", (currentTurn) => {
-  if (!gameStarted || gameOver) return;
+  if (!gameStarted) return;
 
   if (currentTurn === player) {
     status.innerText = "✅ Your turn!";
@@ -118,46 +114,3 @@ socket.on("turn", (currentTurn) => {
     guessBtn.disabled = true;
   }
 });
-
-socket.on("retryTurn", () => {
-  if (gameOver) return;
-  status.innerText = "❌ Invalid guess. Try again!";
-  guessInput.disabled = false;
-  guessBtn.disabled = false;
-});
-
-socket.on("revealSecret", (data) => {
-  const opp = player === "A" ? data.B : data.A;
-  const div = document.createElement("div");
-  div.className = "secret-reveal";
-  div.innerText = `🔓 Opponent's Secret: ${opp}`;
-  document.querySelector(".wide").appendChild(div);
-});
-
-/* ---------- UI HELPERS ---------- */
-
-playAgainBtn.onclick = () => {
-  sessionStorage.clear();
-  window.location.href = "/";
-};
-
-copyBtn.onclick = () => {
-  navigator.clipboard.writeText(roomLink);
-  copyBtn.innerText = "Copied!";
-  setTimeout(() => (copyBtn.innerText = "Copy Invite"), 1500);
-};
-
-function launchConfetti() {
-  const confetti = document.createElement("div");
-  confetti.className = "confetti";
-
-  for (let i = 0; i < 80; i++) {
-    const s = document.createElement("span");
-    s.style.left = Math.random() * 100 + "vw";
-    s.style.animationDelay = Math.random() * 2 + "s";
-    s.style.setProperty("--h", Math.random() * 360);
-    confetti.appendChild(s);
-  }
-
-  document.body.appendChild(confetti);
-}

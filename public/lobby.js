@@ -3,7 +3,7 @@ function generateRoom() {
 }
 
 function enterGame() {
-  let room = document.getElementById("room").value.trim().toUpperCase();
+  let room = document.getElementById("room").value.trim();
   const name = document.getElementById("name").value.trim();
   const player = document.getElementById("player").value;
 
@@ -28,9 +28,3 @@ function generateRoomId() {
 }
 let room = document.getElementById("room").value.trim();
 if (!room) room = generateRoomId();
-const params = new URLSearchParams(window.location.search);
-const roomFromUrl = params.get("room");
-
-if (roomFromUrl) {
-  document.getElementById("room").value = roomFromUrl.toUpperCase();
-}
