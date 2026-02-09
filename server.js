@@ -151,6 +151,7 @@ io.on("connection", (socket) => {
   socket.on("guess", (num) => {
     const room = rooms[socket.room];
     if (!room) return;
+    if (room.state === "GAME_OVER") return;
 
     const p = socket.player;
     const o = p === "A" ? "B" : "A";
@@ -170,8 +171,10 @@ io.on("connection", (socket) => {
     // Invalid guess
     // Invalid guess (do NOT lock turn)
     if (!isValid(num)) {
+      if (room.state !== "IN_PROGRESS") return;
+
       socket.emit("msg", "❌ Invalid guess");
-      socket.emit("retryTurn"); // 🔥 NEW EVENT
+      socket.emit("retryTurn");
       return;
     }
 
@@ -195,6 +198,7 @@ io.on("connection", (socket) => {
 
     // WIN
     if (fb.cp === 4) {
+      room.state = "GAME_OVER";
       io.to(socket.room).emit(
         "msg",
         `🏆 ${room.players[p].name} wins the game!`,

@@ -74,6 +74,8 @@ socket.on("feedback", (fb) => {
 
 const gameResult = document.getElementById("gameResult");
 const resultText = document.getElementById("resultText");
+let gameOver = false;
+
 // General messages
 socket.on("msg", (msg) => {
   status.innerText = msg;
@@ -86,6 +88,7 @@ socket.on("msg", (msg) => {
   }
 
   if (msg.includes("wins")) {
+    gameOver = true;
     gameStarted = false;
     guessInput.disabled = true;
     guessBtn.disabled = true;
@@ -116,6 +119,7 @@ socket.on("turn", (currentTurn) => {
 });
 
 socket.on("retryTurn", () => {
+  if (gameOver) return;
   status.innerText = "❌ Invalid guess. Try again!";
   guessInput.disabled = false;
   guessBtn.disabled = false;
