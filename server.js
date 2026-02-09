@@ -8,17 +8,31 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
+/*
+Room structure:
+rooms = {
+  SG123: {
+    players: { A: { id, name }, B: { id, name } },
+    secrets: { A: "1234", B: "5678" },
+    attempts: { A: 0, B: 0 },
+    turn: "A",
+    state: "WAITING" | "IN_PROGRESS" | "GAME_OVER"
+  }
+}
+*/
 const rooms = {};
+let waitingPlayer = null;
 
-/* ---------- HELPERS ---------- */
+/* ---------------- HELPERS ---------------- */
 
 function isValid(num) {
   return /^[1-9]{4}$/.test(num) && new Set(num).size === 4;
 }
 
 function feedback(secret, guess) {
-  let cp = 0,
-    wp = 0;
+  let cp = 0;
+  let wp = 0;
+
   for (let i = 0; i < 4; i++) {
     if (guess[i] === secret[i]) cp++;
     else if (secret.includes(guess[i])) wp++;
@@ -26,9 +40,10 @@ function feedback(secret, guess) {
   return { cp, wp };
 }
 
-/* ---------- SOCKET ---------- */
+/* ---------------- SOCKET ---------------- */
 
 io.on("connection", (socket) => {
+  /* -------- MANUAL ROOM JOIN -------- */
   socket.on("join", ({ room, player, name }) => {
     room = room.trim().toUpperCase();
 
@@ -49,16 +64,45 @@ io.on("connection", (socket) => {
 
     rooms[room].players[player] = { id: socket.id, name };
 
-    const count = Object.keys(rooms[room].players).length;
-
-    io.to(room).emit(
-      "msg",
-      count === 1
-        ? "⏳ Waiting for opponent to join..."
-        : "👥 Both players joined. Lock your secrets!",
-    );
+    io.to(room).emit("msg", `👤 ${name} joined as Player ${player}`);
   });
 
+  /* -------- AUTO MATCH -------- */
+  socket.on("autoMatch", ({ name }) => {
+    socket.name = name;
+
+    if (!waitingPlayer) {
+      waitingPlayer = socket;
+      socket.emit("msg", "🔍 Waiting for another player...");
+      return;
+    }
+
+    const room = "SG" + Math.floor(100 + Math.random() * 900);
+
+    rooms[room] = {
+      players: {
+        A: { id: waitingPlayer.id, name: waitingPlayer.name },
+        B: { id: socket.id, name },
+      },
+      secrets: {},
+      attempts: { A: 0, B: 0 },
+      turn: "A",
+      state: "WAITING",
+    };
+
+    waitingPlayer.join(room);
+    socket.join(room);
+
+    waitingPlayer.room = room;
+    waitingPlayer.player = "A";
+    socket.room = room;
+    socket.player = "B";
+
+    io.to(room).emit("msg", "🎮 Match found!");
+    waitingPlayer = null;
+  });
+
+  /* -------- SET SECRET -------- */
   socket.on("secret", (num) => {
     const room = rooms[socket.room];
     if (!room || room.state !== "WAITING") return;
@@ -69,8 +113,8 @@ io.on("connection", (socket) => {
     }
 
     room.secrets[socket.player] = num;
-    socket.emit("msg", "🔒 Secret locked. Waiting for opponent...");
 
+    socket.emit("msg", "🔒 Secret locked. Waiting for opponent...");
     socket
       .to(socket.room)
       .emit(
@@ -85,6 +129,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  /* -------- GUESS -------- */
   socket.on("guess", (num) => {
     const room = rooms[socket.room];
     if (!room || room.state !== "IN_PROGRESS") return;
@@ -92,7 +137,10 @@ io.on("connection", (socket) => {
     const p = socket.player;
     const o = p === "A" ? "B" : "A";
 
-    if (room.turn !== p) return;
+    if (room.turn !== p) {
+      socket.emit("msg", "⏳ Not your turn");
+      return;
+    }
 
     if (!isValid(num)) {
       socket.emit("msg", "❌ Invalid guess");
@@ -100,7 +148,13 @@ io.on("connection", (socket) => {
       return;
     }
 
+    if (room.attempts[p] >= 10) {
+      socket.emit("msg", "❌ No attempts left");
+      return;
+    }
+
     room.attempts[p]++;
+
     const fb = feedback(room.secrets[o], num);
 
     io.to(socket.room).emit("feedback", {
@@ -111,29 +165,70 @@ io.on("connection", (socket) => {
       correctWrongPos: fb.wp,
     });
 
+    /* -------- WIN -------- */
     if (fb.cp === 4) {
       room.state = "GAME_OVER";
+
       io.to(socket.room).emit(
         "msg",
         `🏆 ${room.players[p].name} WINS THE GAME!`,
       );
-      io.to(socket.room).emit("revealSecret", room.secrets);
-      delete rooms[socket.room];
+
+      io.to(socket.room).emit("revealSecret", {
+        A: room.secrets.A,
+        B: room.secrets.B,
+      });
+
+      setTimeout(() => {
+        delete rooms[socket.room];
+      }, 3000);
+
       return;
     }
 
+    /* -------- LAST ATTEMPT -------- */
+    if (room.attempts[p] === 10) {
+      io.to(socket.room).emit(
+        "msg",
+        `❌ ${room.players[p].name} used all 10 attempts`,
+      );
+
+      if (room.attempts[o] === 10) {
+        room.state = "GAME_OVER";
+
+        io.to(socket.room).emit("🤝 GAME OVER! No winner.");
+        io.to(socket.room).emit("revealSecret", {
+          A: room.secrets.A,
+          B: room.secrets.B,
+        });
+
+        setTimeout(() => {
+          delete rooms[socket.room];
+        }, 3000);
+      }
+
+      return;
+    }
+
+    /* -------- SWITCH TURN -------- */
     room.turn = o;
     io.to(socket.room).emit("turn", room.turn);
   });
 
+  /* -------- DISCONNECT -------- */
   socket.on("disconnect", () => {
+    if (socket === waitingPlayer) waitingPlayer = null;
+
     if (socket.room && rooms[socket.room]) {
-      delete rooms[socket.room];
       io.to(socket.room).emit("msg", "⚠️ Player disconnected");
+      delete rooms[socket.room];
     }
   });
 });
 
-server.listen(3000, () =>
-  console.log("🔐 SECRET GUESS running on http://localhost:3000"),
-);
+/* ---------------- START SERVER ---------------- */
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🔐 SECRET GUESS running on http://localhost:${PORT}`);
+});

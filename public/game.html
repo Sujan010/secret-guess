@@ -1,40 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SECRET GUESS</title>
+  <title>SECRET GUESS | Game</title>
   <link rel="stylesheet" href="style.css">
   <script src="/socket.io/socket.io.js"></script>
 </head>
-<body>
+<body class="bg-animated">
 
-<nav class="navbar">🔐 SECRET GUESS</nav>
-
+<nav class="navbar">
+  <div class="logo">🔐 SECRET GUESS</div>
+</nav>
 <div class="invite">
   <button id="copyLinkBtn">Copy Invite</button>
 </div>
 
+
 <section class="center">
-  <div class="card">
-    <h3>Player A History</h3>
-    <ul id="historyA"></ul>
+  <div class="card glass history">
+   <h3>Player A History</h3>
+   <ul id="historyA"></ul>
   </div>
 
-  <div class="card">
+  <div class="card glass wide">
     <h2 id="playerInfo"></h2>
-    <input id="secret" placeholder="Set Secret">
+
+    <input id="secret" placeholder="Set Secret Number">
     <button onclick="setSecret()">Lock Secret</button>
 
     <input id="guess" placeholder="Enter Guess">
     <button id="guessBtn" onclick="makeGuess()">Guess</button>
 
-    <p id="status"></p>
+    <p id="status">Waiting…</p>
   </div>
 
-  <div class="card">
-    <h3>Player B History</h3>
-    <ul id="historyB"></ul>
+  
+
+  <div class="card glass history">
+   <h3>Player B History</h3>
+   <ul id="historyB"></ul>
   </div>
+
 </section>
+
+
+<div id="gameResult" class="game-result hidden">
+  <h1 id="resultText"></h1>
+  <button id="playAgainBtn" class="play-again-btn">Play Again</button>
+</div>
+
 
 <script src="game.js"></script>
 </body>
