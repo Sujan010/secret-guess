@@ -481,3 +481,47 @@ input:disabled {
   color: white;
   font-size: 13px;
 }
+.invite {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+
+  margin: 24px auto 40px;   /* space above & below */
+  width: fit-content;
+}
+
+#roomLink {
+  width: 280px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  outline: none;
+}
+
+#copyLinkBtn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+
+  font-weight: 600;
+  font-size: 14px;
+
+  background: linear-gradient(135deg, #00e5ff, #6a00ff);
+  color: white;
+
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#copyLinkBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 229, 255, 0.4);
+}
+
+#copyLinkBtn:active {
+  transform: scale(0.96);
+}
