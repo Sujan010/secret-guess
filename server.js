@@ -168,8 +168,10 @@ io.on("connection", (socket) => {
     }
 
     // Invalid guess
+    // Invalid guess (do NOT lock turn)
     if (!isValid(num)) {
       socket.emit("msg", "❌ Invalid guess");
+      socket.emit("retryTurn"); // 🔥 NEW EVENT
       return;
     }
 

@@ -115,6 +115,12 @@ socket.on("turn", (currentTurn) => {
   }
 });
 
+socket.on("retryTurn", () => {
+  status.innerText = "❌ Invalid guess. Try again!";
+  guessInput.disabled = false;
+  guessBtn.disabled = false;
+});
+
 socket.on("revealSecret", (data) => {
   const opponentSecret = player === "A" ? data.B : data.A;
 
@@ -143,4 +149,14 @@ function launchConfetti() {
   }
 
   document.body.appendChild(confetti);
+}
+
+function makeGuess() {
+  if (guessInput.disabled) return;
+
+  socket.emit("guess", guess.value);
+
+  // Disable temporarily — server decides what happens next
+  guessInput.disabled = true;
+  guessBtn.disabled = true;
 }
