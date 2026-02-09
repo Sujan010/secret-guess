@@ -10,6 +10,8 @@ const guessBtn = document.getElementById("guessBtn");
 const room = sessionStorage.getItem("room").toUpperCase();
 const name = sessionStorage.getItem("name");
 const player = sessionStorage.getItem("player");
+let gameOver = false;
+const roomLink = `${window.location.origin}/join?room=${room}`;
 
 // Initial UI state
 guessInput.disabled = true;
@@ -74,7 +76,6 @@ socket.on("feedback", (fb) => {
 
 const gameResult = document.getElementById("gameResult");
 const resultText = document.getElementById("resultText");
-let gameOver = false;
 
 // General messages
 socket.on("msg", (msg) => {
@@ -87,7 +88,7 @@ socket.on("msg", (msg) => {
     gameStarted = true;
   }
 
-  if (msg.includes("wins")) {
+  if (msg.includes("WINS")) {
     gameOver = true;
     gameStarted = false;
     guessInput.disabled = true;
@@ -98,6 +99,7 @@ socket.on("msg", (msg) => {
 
   if (msg.includes("NO WINNER") || msg.includes("used all")) {
     gameStarted = false;
+    gameOver = true;
     resultText.innerText = "🤝 GAME OVER";
     gameResult.classList.remove("hidden");
   }
@@ -158,9 +160,32 @@ function launchConfetti() {
 function makeGuess() {
   if (guessInput.disabled) return;
 
-  socket.emit("guess", guess.value);
+  const value = guessInput.value.trim();
 
-  // Disable temporarily — server decides what happens next
+  if (!value) return;
+
+  socket.emit("guess", value);
+
+  // ✅ ALWAYS clear input after sending
+  guessInput.value = "";
+
+  // Temporarily disable until server responds
   guessInput.disabled = true;
   guessBtn.disabled = true;
+}
+
+function showGameResult(text) {
+  const overlay = document.createElement("div");
+  overlay.className = "game-result";
+
+  overlay.innerHTML = `
+    <h1>${text}</h1>
+    <button onclick="playAgain()">Play Again</button>
+  `;
+
+  document.body.appendChild(overlay);
+}
+function playAgain() {
+  sessionStorage.clear();
+  window.location.href = "/";
 }

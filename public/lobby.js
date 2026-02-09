@@ -28,3 +28,9 @@ function generateRoomId() {
 }
 let room = document.getElementById("room").value.trim();
 if (!room) room = generateRoomId();
+const params = new URLSearchParams(window.location.search);
+const roomFromUrl = params.get("room");
+
+if (roomFromUrl) {
+  document.getElementById("room").value = roomFromUrl.toUpperCase();
+}
