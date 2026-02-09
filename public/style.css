@@ -364,7 +364,7 @@ input:disabled {
   font-weight: 800;
   text-align: center;
   background: linear-gradient(90deg, #00e5ff, #7c4dff, #ff4081);
-  -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: popIn 0.6s ease-out;
 }
@@ -434,11 +434,15 @@ input:disabled {
   z-index: 1000;
 }
 
+.hidden {
+  display: none;
+}
+
 .game-result h1 {
   font-size: 56px;
   margin-bottom: 24px;
   background: linear-gradient(90deg, #00e5ff, #7c4dff, #ff4081);
-  -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -450,4 +454,30 @@ input:disabled {
   cursor: pointer;
   background: linear-gradient(90deg, #00e5ff, #7c4dff);
   color: white;
+}
+
+.invite {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.invite input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  background: rgba(255,255,255,0.15);
+  color: white;
+}
+
+.invite button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(90deg, #00e5ff, #7c4dff);
+  color: white;
+  font-size: 13px;
 }

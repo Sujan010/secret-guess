@@ -1,19 +1,29 @@
 const socket = io();
 
-// DOM references (MUST come first)
-const history = document.getElementById("history");
+/* ---------- DOM ---------- */
+const historyA = document.getElementById("historyA");
+const historyB = document.getElementById("historyB");
 const status = document.getElementById("status");
 const guessInput = document.getElementById("guess");
 const guessBtn = document.getElementById("guessBtn");
+const secretInput = document.getElementById("secret");
 
-// Session data
+const gameResult = document.getElementById("gameResult");
+const resultText = document.getElementById("resultText");
+const playAgainBtn = document.getElementById("playAgainBtn");
+
+const roomLinkInput = document.getElementById("roomLink");
+const copyBtn = document.getElementById("copyLinkBtn");
+
+/* ---------- SESSION ---------- */
 const room = sessionStorage.getItem("room").toUpperCase();
 const name = sessionStorage.getItem("name");
 const player = sessionStorage.getItem("player");
-let gameOver = false;
-const roomLink = `${window.location.origin}/join?room=${room}`;
 
-// Initial UI state
+let gameStarted = false;
+let gameOver = false;
+
+/* ---------- INIT ---------- */
 guessInput.disabled = true;
 guessBtn.disabled = true;
 status.innerText = "🔐 Lock your secret to begin";
@@ -21,69 +31,55 @@ status.innerText = "🔐 Lock your secret to begin";
 document.getElementById("playerInfo").innerText =
   `${name} (Player ${player}) | Room ${room}`;
 
-// Join room
+const roomLink = `${window.location.origin}/join?room=${room}`;
+roomLinkInput.value = roomLink;
+
 socket.emit("join", { room, player, name });
 
-let gameStarted = false;
-
-/* -------- Actions -------- */
+/* ---------- ACTIONS ---------- */
 
 function setSecret() {
-  socket.emit("secret", secret.value);
+  socket.emit("secret", secretInput.value);
 }
 
 function makeGuess() {
-  if (guessInput.disabled || !gameStarted) return;
+  if (guessInput.disabled || !gameStarted || gameOver) return;
 
-  socket.emit("guess", guess.value);
+  const value = guessInput.value.trim();
+  if (!value) return;
+
+  socket.emit("guess", value);
   guessInput.value = "";
 
-  // prevent spam until next turn
   guessInput.disabled = true;
   guessBtn.disabled = true;
 }
 
-/* -------- Socket events -------- */
-
-// Feedback
-const historyA = document.getElementById("historyA");
-const historyB = document.getElementById("historyB");
+/* ---------- SOCKET EVENTS ---------- */
 
 socket.on("feedback", (fb) => {
-  const totalCorrect = fb.correctPos + fb.correctWrongPos;
-  let message = "";
+  const total = fb.correctPos + fb.correctWrongPos;
+  let msg = "";
 
-  if (totalCorrect === 0) {
-    message = "All numbers are wrong";
-  } else if (fb.correctPos > 0 && fb.correctWrongPos === 0) {
-    message = `${fb.correctPos} number${fb.correctPos > 1 ? "s" : ""} are correct and ${fb.correctPos} position${fb.correctPos > 1 ? "s" : ""} are also correct`;
-  } else if (fb.correctPos === 0 && fb.correctWrongPos > 0) {
-    message = `${fb.correctWrongPos} number${fb.correctWrongPos > 1 ? "s" : ""} are correct but position${fb.correctWrongPos > 1 ? "s" : ""} are wrong`;
+  if (total === 0) {
+    msg = "All numbers are wrong";
+  } else if (fb.correctPos === total) {
+    msg = `${fb.correctPos} numbers are correct and ${fb.correctPos} positions are also correct`;
+  } else if (fb.correctPos === 0) {
+    msg = `${fb.correctWrongPos} numbers are correct but positions are wrong`;
   } else {
-    message = `${totalCorrect} number${totalCorrect > 1 ? "s" : ""} are correct and ${fb.correctPos} position${fb.correctPos > 1 ? "s" : ""} are also correct`;
+    msg = `${total} numbers are correct and ${fb.correctPos} positions are also correct`;
   }
 
   const li = document.createElement("li");
-  li.innerText = `Attempt ${fb.attempt}: Guess ${fb.guess} → ${message}`;
+  li.innerText = `Attempt ${fb.attempt}: Guess ${fb.guess} → ${msg}`;
 
-  // Append to correct history
-  if (fb.by === "A") {
-    historyA.appendChild(li);
-  } else {
-    historyB.appendChild(li);
-  }
+  (fb.by === "A" ? historyA : historyB).appendChild(li);
 });
 
-const gameResult = document.getElementById("gameResult");
-const resultText = document.getElementById("resultText");
-
-// General messages
 socket.on("msg", (msg) => {
   status.innerText = msg;
 
-  if (msg.includes("Both secrets locked")) {
-    gameStarted = true;
-  }
   if (msg.includes("GAME STARTED")) {
     gameStarted = true;
   }
@@ -91,23 +87,27 @@ socket.on("msg", (msg) => {
   if (msg.includes("WINS")) {
     gameOver = true;
     gameStarted = false;
+
     guessInput.disabled = true;
     guessBtn.disabled = true;
+
     resultText.innerText = msg.includes(name) ? "🎉 YOU WON!" : "😔 YOU LOST";
+
     gameResult.classList.remove("hidden");
+
+    if (msg.includes(name)) launchConfetti();
   }
 
   if (msg.includes("NO WINNER") || msg.includes("used all")) {
-    gameStarted = false;
     gameOver = true;
+    gameStarted = false;
     resultText.innerText = "🤝 GAME OVER";
     gameResult.classList.remove("hidden");
   }
 });
 
-// Turn handling (ONLY controls guessing)
 socket.on("turn", (currentTurn) => {
-  if (!gameStarted) return;
+  if (!gameStarted || gameOver) return;
 
   if (currentTurn === player) {
     status.innerText = "✅ Your turn!";
@@ -128,18 +128,24 @@ socket.on("retryTurn", () => {
 });
 
 socket.on("revealSecret", (data) => {
-  const opponentSecret = player === "A" ? data.B : data.A;
-
-  const secretReveal = document.createElement("div");
-  secretReveal.className = "secret-reveal";
-  secretReveal.innerText = `🔓 Opponent's Secret: ${opponentSecret}`;
-
-  document.querySelector(".card").appendChild(secretReveal);
+  const opp = player === "A" ? data.B : data.A;
+  const div = document.createElement("div");
+  div.className = "secret-reveal";
+  div.innerText = `🔓 Opponent's Secret: ${opp}`;
+  document.querySelector(".wide").appendChild(div);
 });
 
-document.getElementById("playAgainBtn").onclick = () => {
+/* ---------- UI HELPERS ---------- */
+
+playAgainBtn.onclick = () => {
   sessionStorage.clear();
   window.location.href = "/";
+};
+
+copyBtn.onclick = () => {
+  navigator.clipboard.writeText(roomLink);
+  copyBtn.innerText = "Copied!";
+  setTimeout(() => (copyBtn.innerText = "Copy Invite"), 1500);
 };
 
 function launchConfetti() {
@@ -147,45 +153,12 @@ function launchConfetti() {
   confetti.className = "confetti";
 
   for (let i = 0; i < 80; i++) {
-    const piece = document.createElement("span");
-    piece.style.left = Math.random() * 100 + "vw";
-    piece.style.animationDelay = Math.random() * 2 + "s";
-    piece.style.setProperty("--h", Math.random() * 360);
-    confetti.appendChild(piece);
+    const s = document.createElement("span");
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDelay = Math.random() * 2 + "s";
+    s.style.setProperty("--h", Math.random() * 360);
+    confetti.appendChild(s);
   }
 
   document.body.appendChild(confetti);
-}
-
-function makeGuess() {
-  if (guessInput.disabled) return;
-
-  const value = guessInput.value.trim();
-
-  if (!value) return;
-
-  socket.emit("guess", value);
-
-  // ✅ ALWAYS clear input after sending
-  guessInput.value = "";
-
-  // Temporarily disable until server responds
-  guessInput.disabled = true;
-  guessBtn.disabled = true;
-}
-
-function showGameResult(text) {
-  const overlay = document.createElement("div");
-  overlay.className = "game-result";
-
-  overlay.innerHTML = `
-    <h1>${text}</h1>
-    <button onclick="playAgain()">Play Again</button>
-  `;
-
-  document.body.appendChild(overlay);
-}
-function playAgain() {
-  sessionStorage.clear();
-  window.location.href = "/";
 }
