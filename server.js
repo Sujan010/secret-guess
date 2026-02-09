@@ -117,22 +117,17 @@ io.on("connection", (socket) => {
   socket.on("secret", (num) => {
     const room = rooms[socket.room];
     if (!room) return;
-    if (room.secrets.A && room.secrets.B) {
-      io.to(socket.room).emit("msg", "🎯 Both secrets locked. Game begins!");
-      io.to(socket.room).emit("turn", room.turn);
-    }
 
     if (!isValid(num)) {
       socket.emit("msg", "❌ Invalid secret");
       return;
     }
 
+    // 🔑 SAVE SECRET FIRST (MOST IMPORTANT)
     room.secrets[socket.player] = num;
 
-    // Notify THIS player
     socket.emit("msg", "🔒 Secret locked. Waiting for opponent...");
 
-    // Notify opponent (if exists)
     socket
       .to(socket.room)
       .emit(
@@ -140,9 +135,11 @@ io.on("connection", (socket) => {
         `⏳ ${room.players[socket.player].name} locked their secret`,
       );
 
-    // If both secrets are ready → start game
+    // ✅ NOW check if both secrets are ready
     if (room.secrets.A && room.secrets.B) {
-      io.to(socket.room).emit("msg", "🎯 Both secrets locked. Game begins!");
+      room.state = "IN_PROGRESS";
+
+      io.to(socket.room).emit("msg", "🎯 GAME STARTED!");
       io.to(socket.room).emit("turn", room.turn);
     }
   });
