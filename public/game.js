@@ -72,6 +72,8 @@ socket.on("feedback", (fb) => {
   }
 });
 
+const gameResult = document.getElementById("gameResult");
+const resultText = document.getElementById("resultText");
 // General messages
 socket.on("msg", (msg) => {
   status.innerText = msg;
@@ -79,15 +81,22 @@ socket.on("msg", (msg) => {
   if (msg.includes("Both secrets locked")) {
     gameStarted = true;
   }
+  if (msg.includes("GAME STARTED")) {
+    gameStarted = true;
+  }
 
-  if (
-    msg.includes("wins") ||
-    msg.includes("Game Over") ||
-    msg.includes("used all")
-  ) {
+  if (msg.includes("wins")) {
     gameStarted = false;
     guessInput.disabled = true;
     guessBtn.disabled = true;
+    resultText.innerText = msg.includes(name) ? "🎉 YOU WON!" : "😔 YOU LOST";
+    gameResult.classList.remove("hidden");
+  }
+
+  if (msg.includes("NO WINNER") || msg.includes("used all")) {
+    gameStarted = false;
+    resultText.innerText = "🤝 GAME OVER";
+    gameResult.classList.remove("hidden");
   }
 });
 

@@ -12,6 +12,11 @@
 </nav>
 
 <section class="center">
+  <div class="card glass history">
+   <h3>Player A History</h3>
+   <ul id="historyA"></ul>
+  </div>
+
   <div class="card glass wide">
     <h2 id="playerInfo"></h2>
 
@@ -24,17 +29,18 @@
     <p id="status">Waiting…</p>
   </div>
 
-  <div class="card glass history">
-  <h3>Player A History</h3>
-  <ul id="historyA"></ul>
- </div>
+  
 
- <div class="card glass history">
-  <h3>Player B History</h3>
-  <ul id="historyB"></ul>
- </div>
+  <div class="card glass history">
+   <h3>Player B History</h3>
+   <ul id="historyB"></ul>
+  </div>
 
 </section>
+<div id="gameResult" class="game-result hidden">
+  <h1 id="resultText"></h1>
+</div>
+
 
 <script src="game.js"></script>
 </body>
