@@ -7,7 +7,7 @@ const guessInput = document.getElementById("guess");
 const guessBtn = document.getElementById("guessBtn");
 
 // Session data
-const room = sessionStorage.getItem("room");
+const room = sessionStorage.getItem("room").toUpperCase();
 const name = sessionStorage.getItem("name");
 const player = sessionStorage.getItem("player");
 
@@ -114,3 +114,33 @@ socket.on("turn", (currentTurn) => {
     guessBtn.disabled = true;
   }
 });
+
+socket.on("revealSecret", (data) => {
+  const opponentSecret = player === "A" ? data.B : data.A;
+
+  const secretReveal = document.createElement("div");
+  secretReveal.className = "secret-reveal";
+  secretReveal.innerText = `🔓 Opponent's Secret: ${opponentSecret}`;
+
+  document.querySelector(".card").appendChild(secretReveal);
+});
+
+document.getElementById("playAgainBtn").onclick = () => {
+  sessionStorage.clear();
+  window.location.href = "/";
+};
+
+function launchConfetti() {
+  const confetti = document.createElement("div");
+  confetti.className = "confetti";
+
+  for (let i = 0; i < 80; i++) {
+    const piece = document.createElement("span");
+    piece.style.left = Math.random() * 100 + "vw";
+    piece.style.animationDelay = Math.random() * 2 + "s";
+    piece.style.setProperty("--h", Math.random() * 360);
+    confetti.appendChild(piece);
+  }
+
+  document.body.appendChild(confetti);
+}

@@ -3,7 +3,7 @@ function generateRoom() {
 }
 
 function enterGame() {
-  let room = document.getElementById("room").value.trim();
+  let room = document.getElementById("room").value.trim().toUpperCase();
   const name = document.getElementById("name").value.trim();
   const player = document.getElementById("player").value;
 

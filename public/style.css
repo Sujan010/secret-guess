@@ -322,8 +322,9 @@ input:disabled {
 }
 
 .history {
-  height: 520px;          /* Enough for 10 attempts */
-  overflow-y: auto;
+  height: auto;                /* auto height */
+  max-height: none;            /* remove limit */
+  overflow: visible;           /* NO scroll */
   padding: 16px;
 }
 
@@ -383,3 +384,42 @@ input:disabled {
   }
 }
 
+.secret-reveal {
+  margin-top: 14px;
+  font-weight: bold;
+  text-align: center;
+  background: rgba(0,0,0,0.25);
+  padding: 10px;
+  border-radius: 10px;
+}
+.play-again-btn {
+  margin-top: 20px;
+  padding: 14px 28px;
+  font-size: 18px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(90deg, #00e5ff, #7c4dff);
+  color: white;
+}
+.confetti {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: hsl(var(--h), 100%, 60%);
+  animation: fall 3s linear infinite;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}

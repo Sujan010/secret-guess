@@ -52,6 +52,7 @@ function feedback(secret, guess) {
 io.on("connection", (socket) => {
   /* -------- MANUAL ROOM JOIN -------- */
   socket.on("join", ({ room, player, name }) => {
+    room = room.trim().toUpperCase();
     socket.join(room);
     socket.room = room;
     socket.player = player;
@@ -197,6 +198,16 @@ io.on("connection", (socket) => {
         `🏆 ${room.players[p].name} wins the game!`,
       );
       delete rooms[socket.room];
+
+      if (msg.includes("YOU WON")) {
+        launchConfetti();
+      }
+
+      io.to(socket.room).emit("revealSecret", {
+        A: room.secrets.A,
+        B: room.secrets.B,
+      });
+
       return;
     }
 
@@ -207,10 +218,15 @@ io.on("connection", (socket) => {
         `❌ ${room.players[p].name} used all 10 attempts`,
       );
 
-      if (room.attempts[o] >= 10) {
+      if (room.attempts[o] === 10) {
         io.to(socket.room).emit("msg", "🤝 Game Over! No winner.");
         delete rooms[socket.room];
       }
+      io.to(socket.room).emit("revealSecret", {
+        A: room.secrets.A,
+        B: room.secrets.B,
+      });
+
       return; // ⛔ Do not switch turn
     }
 
